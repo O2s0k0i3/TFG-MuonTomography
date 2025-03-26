@@ -6,18 +6,23 @@ import json
 
 def get_density(material):
     # density of the different materials in g/cm3
-    match material:
-        case "lead": return 11.35
-        case "copper": return 8.96
-        case "iron": return 7.874
-        case "aluminium": return 2.7
-        case "steel": return 7.85
+    if material == "lead":
+        return 11.35
+    if material == "copper":
+        return 8.96
+    if material == "iron":
+        return 7.874
+    if material == "aluminium":
+        return 2.7
+    if material == "steel":
+        return 7.85
 
 def poca(r1, r2, v1, v2):
     v3 = np.cross(v1, v2)
     v2_cross_v3 = np.cross(v2, v3)
     det = np.dot(v1, -v2_cross_v3)
-    if np.abs(det) < 1.0e-6:
+
+    if np.abs(det) < 1.0e-6 or np.isnan(det):
         return False, [0, 0, 0]
     inv_det = 1/det
     delta_r = r1 - r2
@@ -34,12 +39,12 @@ def read_json(path):
     world = content['TheWorld']
     pipe = content['ComplexPipe']
 
-    return {'width': int(world['xSizeWorld']), 
-              'height': int(world['ySizeWorld']), 
-              'xcenter': float(pipe['x']), 
-              'ycenter': float(pipe['y']), 
-              'inner_radius': float(pipe['innerRadius_1']), 
-              'outer_radius': float(pipe['outerRadius']), 
+    return {'width': 45,
+              'height': 45,
+              'xcenter': float(pipe['x']),
+              'ycenter': float(pipe['y']),
+              'inner_radius': float(pipe['innerRadius_1']),
+              'outer_radius': float(pipe['outerRadius']),
               'material': pipe['outerMaterial_1'],
               'pipe_number': int(pipe_number)}
 
@@ -54,6 +59,19 @@ def real_pipe(dataset, params):
         r2 = np.asarray([row['x2'], row['y2'], row['z2']])
         v1 = np.asarray([row['vx1'], row['vy1'], row['vz1']])
         v2 = np.asarray([row['vx2'], row['vy2'], row['vz2']])
+        # Para eliminar un poco de ruido
+        if True in np.isnan(v1) or True in np.isnan(v2):
+            continue
+        v1_normalized = v1/np.linalg.norm(v1)
+        v2_normalized = v2/np.linalg.norm(v2)
+        val = np.dot(v1_normalized, v2_normalized)
+        if val > 1.0:
+            val = 1.0
+        theta = np.arccos(val)
+        # Find the optimal value here
+        if theta < 0.06:
+            continue
+
         valid, point = poca(r1, r2, v1, v2)
 
         if not valid or np.abs(point[0]) > width or np.abs(point[1]) > height:
@@ -63,11 +81,11 @@ def real_pipe(dataset, params):
         y.append(point[1])
         z.append(point[2])
 
-    plt.figure(figsize=(width/100, height/100))
-    plt.hist2d(x, y, bins=(width, height), cmap="binary")
+    plt.figure(figsize=(width, height), dpi=1)
+    plt.hist2d(y, z, bins=(width, height), cmap="binary", range=[[-width/2, width/2], [-height/2, height/2]])
     plt.axis("off")
     plt.margins(0, 0)
-    plt.savefig(f"images/real/real_{params["pipe_number"]}.png")
+    plt.savefig(f"images/real/real_{params['pipe_number']}.png")
 
 def simulated_pipe(params):
     width = params["width"]
