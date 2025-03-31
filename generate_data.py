@@ -41,6 +41,7 @@ def read_json(path):
 
     return {'width': 45,
               'height': 45,
+              'dpi': 10,
               'xcenter': float(pipe['x']),
               'ycenter': float(pipe['y']),
               'inner_radius': float(pipe['innerRadius_1']),
@@ -59,7 +60,7 @@ def real_pipe(dataset, params):
         r2 = np.asarray([row['x2'], row['y2'], row['z2']])
         v1 = np.asarray([row['vx1'], row['vy1'], row['vz1']])
         v2 = np.asarray([row['vx2'], row['vy2'], row['vz2']])
-        # Para eliminar un poco de ruido
+
         if True in np.isnan(v1) or True in np.isnan(v2):
             continue
         v1_normalized = v1/np.linalg.norm(v1)
@@ -68,7 +69,7 @@ def real_pipe(dataset, params):
         if val > 1.0:
             val = 1.0
         theta = np.arccos(val)
-        # Find the optimal value here
+        # Find the optimal value here to clean some noise
         if theta < 0.06:
             continue
 
@@ -81,35 +82,39 @@ def real_pipe(dataset, params):
         y.append(point[1])
         z.append(point[2])
 
-    plt.figure(figsize=(width, height), dpi=1)
+    plt.figure(figsize=(width, height), dpi=params['dpi'])
     plt.hist2d(y, z, bins=(width, height), cmap="binary", range=[[-width/2, width/2], [-height/2, height/2]])
     plt.axis("off")
     plt.margins(0, 0)
     plt.savefig(f"images/real/real_{params['pipe_number']}.png")
 
 def simulated_pipe(params):
-    width = params["width"]
-    height = params["height"]
+    dpi = params['dpi']
+    # All parameters have to be scaled by the dpi to keep the same image size as the real one.
+    width = params["width"] * dpi
+    height = params["height"] * dpi
+    x_center = params["xcenter"] * dpi
+    y_center = params["ycenter"] * dpi
+    inner_radius = params["inner_radius"] * dpi
+    outer_radius = params["outer_radius"] * dpi
     density = get_density(params["material"])
 
     x = np.linspace(0, width-1, width)
     y = np.linspace(0, height-1, height)
-    X, Y = np.meshgrid(x, y)
+    x, y = np.meshgrid(x, y)
 
     # center_x and center_y has the origin in the center of the image
     # the origin of the coordinates is top left, so we need to
     # subtract half the width and half the height here
-    dist_from_center = np.sqrt((X - params["xcenter"] - width/2)**2 + (Y - params["ycenter"] - height/2)**2)
+    dist_from_center = np.sqrt((x - x_center - width/2)**2 + (y - y_center - height/2)**2)
 
-    image = np.zeros((height, width))
+    image = np.zeros((width, height))
 
-    pipe_mask = (dist_from_center >= params["inner_radius"]) & (dist_from_center <= params["outer_radius"])
+    pipe_mask = (dist_from_center >= inner_radius) & (dist_from_center <= outer_radius)
     image[pipe_mask] = density
 
-    # codificar el formato de la imagen en el nombre de la misma forma que esté en los datos
-    # name = f"sim_{center_x}_{center_y}_{inner_radius}_{outer_radius}_{img_width}_{img_height}_{density}.png"
-    name = f"images/simulated/sim_{params["pipe_number"]}.png"
-    # vmin y vmax se han escogido en base a las densidades mínima y máxima que se están considerando
+    name = f"images/simulated/sim_{params['pipe_number']}.png"
+    # vmin and vmax are chosen based on the min and max density of the materials used
     plt.imsave(name, image, vmin=2, vmax=12, cmap="binary")
 
 def main(opts):
