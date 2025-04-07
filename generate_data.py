@@ -39,8 +39,8 @@ def read_json(path):
     world = content['TheWorld']
     pipe = content['ComplexPipe']
 
-    return {'width': 45,
-              'height': 45,
+    return {'width': 51.2,
+              'height': 51.2,
               'dpi': 10,
               'xcenter': float(pipe['x']),
               'ycenter': float(pipe['y']),
@@ -49,7 +49,7 @@ def read_json(path):
               'material': pipe['outerMaterial_1'],
               'pipe_number': int(pipe_number)}
 
-def real_pipe(dataset, params):
+def real_pipe(dataset, params, output_path):
     width = params["width"]
     height = params["height"]
     x = []
@@ -83,16 +83,16 @@ def real_pipe(dataset, params):
         z.append(point[2])
 
     plt.figure(figsize=(width, height), dpi=params['dpi'])
-    plt.hist2d(y, z, bins=(width, height), cmap="binary", range=[[-width/2, width/2], [-height/2, height/2]])
+    plt.hist2d(y, z, bins=(int(width), int(height)), cmap="binary", range=[[-width/2, width/2], [-height/2, height/2]])
     plt.axis("off")
     plt.margins(0, 0)
-    plt.savefig(f"images/real/real_{params['pipe_number']}.png")
+    plt.savefig(output_path)
 
-def simulated_pipe(params):
+def simulated_pipe(params, output_path):
     dpi = params['dpi']
     # All parameters have to be scaled by the dpi to keep the same image size as the real one.
-    width = params["width"] * dpi
-    height = params["height"] * dpi
+    width = int(params["width"] * dpi)
+    height = int(params["height"] * dpi)
     x_center = params["xcenter"] * dpi
     y_center = params["ycenter"] * dpi
     inner_radius = params["inner_radius"] * dpi
@@ -113,20 +113,21 @@ def simulated_pipe(params):
     pipe_mask = (dist_from_center >= inner_radius) & (dist_from_center <= outer_radius)
     image[pipe_mask] = density
 
-    name = f"images/simulated/sim_{params['pipe_number']}.png"
     # vmin and vmax are chosen based on the min and max density of the materials used
-    plt.imsave(name, image, vmin=2, vmax=12, cmap="binary")
+    plt.imsave(output_path, image, vmin=2, vmax=12, cmap="binary")
 
 def main(opts):
     params = read_json(opts.json)
     dataset = pd.read_hdf(opts.hd5)
 
-    real_pipe(dataset, params)
-    simulated_pipe(params)
+    real_pipe(dataset, params, opts.output_real)
+    simulated_pipe(params, opts.output_sim)
 
 if __name__ == "__main__":
     parser = optparse.OptionParser()
     parser.add_option('--hd5')
     parser.add_option('--json')
+    parser.add_option('--output-real')
+    parser.add_option('--output-sim')
     opts, args = parser.parse_args()
     main(opts)
