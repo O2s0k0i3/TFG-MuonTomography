@@ -7,7 +7,7 @@ import json
 def get_density(material):
     # density of the different materials in g/cm3
     if material == "lead":
-        return 11.35
+        return 11.34
     if material == "copper":
         return 8.96
     if material == "iron":
@@ -52,6 +52,7 @@ def read_json(path):
 def real_pipe(dataset, params, output_path):
     width = params["width"]
     height = params["height"]
+    dpi = params["dpi"]
     x = []
     y = []
     z = []
@@ -82,8 +83,8 @@ def real_pipe(dataset, params, output_path):
         y.append(point[1])
         z.append(point[2])
 
-    plt.figure(figsize=(width, height), dpi=params['dpi'])
-    plt.hist2d(y, z, bins=(int(width), int(height)), cmap="binary", range=[[-width/2, width/2], [-height/2, height/2]])
+    plt.figure(figsize=(width, height), dpi=dpi)
+    plt.hist2d(y, z, bins=(100, 100), cmap="binary", range=[[-width/2, width/2], [-height/2, height/2]])
     plt.axis("off")
     plt.margins(0, 0)
     plt.savefig(output_path)
@@ -106,15 +107,19 @@ def simulated_pipe(params, output_path):
     # center_x and center_y has the origin in the center of the image
     # the origin of the coordinates is top left, so we need to
     # subtract half the width and half the height here
-    dist_from_center = np.sqrt((x - x_center - width/2)**2 + (y - y_center - height/2)**2)
+    dist_from_center = np.sqrt((x + x_center - width/2)**2 + (y + y_center - height/2)**2)
 
     image = np.zeros((width, height))
 
     pipe_mask = (dist_from_center >= inner_radius) & (dist_from_center <= outer_radius)
     image[pipe_mask] = density
 
+    plt.figure(figsize=(width/dpi, height/dpi), dpi=dpi)
     # vmin and vmax are chosen based on the min and max density of the materials used
-    plt.imsave(output_path, image, vmin=2, vmax=12, cmap="binary")
+    plt.imshow(image, vmin=2, vmax=12, cmap="binary")
+    plt.axis("off")
+    plt.margins(0, 0)
+    plt.savefig(output_path)
 
 def main(opts):
     params = read_json(opts.json)
